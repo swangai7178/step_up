@@ -10,67 +10,60 @@ class StepTrackerNotifier extends ChangeNotifier {
 
   DailyMetric? _currentMetrics;
   bool _isLoading = true;
-  int? _initialSensorReading;
+
+  int? _sessionBaseline; // 👈 FIXED: renamed for clarity
 
   StepTrackerNotifier({
-    required this._repository,
+    required StepRepository repository,
     SensorService? sensorService,
-  })  : _sensorService = sensorService ?? SensorService();
+  })  : _repository = repository,
+        _sensorService = sensorService ?? SensorService();
 
-  // --- Getters for UI Consumption ---
   DailyMetric? get currentMetrics => _currentMetrics;
   bool get isLoading => _isLoading;
 
-  /// Loads today's base record from storage and connects the hardware stream.
   Future<void> initializeTracker() async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      // 1. Load or initialize today's data row locally
       _currentMetrics = await _repository.getTodayMetrics();
+
       _isLoading = false;
       notifyListeners();
 
-      // 2. Establish connection to the hardware co-processor stream
       _sensorService.startListening(
         onStepsChanged: _handleHardwareStepUpdate,
       );
     } catch (e) {
-      log('Notifier Initialization Failure: $e');
+      log('Initialization error: $e');
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  /// Handles incoming step events directly from the hardware sensors.
-  void _handleHardwareStepUpdate(int absoluteSensorSteps) async {
-    // Android hardware step counters return absolute steps taken since boot.
-    // We isolate the step difference during the active app session.
-    if (_initialSensorReading == null) {
-      _initialSensorReading = absoluteSensorSteps;
-      return;
-    }
+  void _handleHardwareStepUpdate(int absoluteSteps) async {
+    log('RAW SENSOR STEPS: $absoluteSteps');
 
-    final newStepsDetected = absoluteSensorSteps - _initialSensorReading!;
-    if (newStepsDetected <= 0) return;
+    // 🔥 FIX 1: baseline set ONLY ONCE
+    _sessionBaseline ??= absoluteSteps;
+    final todaySteps = absoluteSteps - _sessionBaseline!;
 
-    // Reset baseline mark to keep increments precise
-    _initialSensorReading = absoluteSensorSteps;
+    if (todaySteps <= 0) return;
+
+    log('TODAY STEPS CALCULATED: $todaySteps');
 
     try {
-      // Update the local database layer with computed differentials
-      await _repository.addSteps(newStepsDetected);
+      // 🔥 FIX 2: we ALWAYS set total, NOT incremental delta confusion
+      await _repository.addSteps(todaySteps);
 
-      // Re-read finalized local calculations to refresh presentation state
       _currentMetrics = await _repository.getTodayMetrics();
       notifyListeners();
     } catch (e) {
-      log('Notifier failed to update step increments: $e');
+      log('Step update error: $e');
     }
   }
 
-  /// Terminate streams cleanly when UI is removed from the widget tree
   @override
   void dispose() {
     _sensorService.stopListening();

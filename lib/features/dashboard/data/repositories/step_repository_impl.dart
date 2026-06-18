@@ -23,37 +23,40 @@ class StepRepositoryImpl implements StepRepository {
   }
 
   @override
-  Future<void> addSteps(int count) async {
-    if (count <= 0) return;
+  Future<void> addSteps(int totalStepsToday) async {
+    if (totalStepsToday <= 0) return;
 
-    final extraDistance = count * AppConstants.averageStrideLengthMeters / 1000.0;
-    final extraCalories = count * AppConstants.caloriesBurnedPerStep;
-    final extraMinutes = (count / 100).ceil();
+    log('Saving TOTAL steps today: $totalStepsToday');
 
-    await _localDatasource.updateTodayMetrics(
-      additionalSteps: count,
-      additionalCalories: extraCalories,
-      additionalDistanceKm: extraDistance,
-      additionalDurationMinutes: extraMinutes,
+    final extraDistance =
+        totalStepsToday * AppConstants.averageStrideLengthMeters / 1000.0;
+
+    final extraCalories =
+        totalStepsToday * AppConstants.caloriesBurnedPerStep;
+
+    final extraMinutes = (totalStepsToday / 100).ceil();
+
+    await _localDatasource.setTodayMetrics(
+      steps: totalStepsToday,
+      calories: extraCalories,
+      distanceKm: extraDistance,
+      durationMinutes: extraMinutes,
     );
   }
 
   @override
   Future<void> syncPastPendingDays() async {
     try {
-      // 1. Fetch today's record to check if it needs manual uploading
-      final currentModel = await _localDatasource.getOrCreateTodayMetrics();
-      
-      // 2. Safely pass it to your remote datasource layer to satisfy the field usage cleanly
-      if (currentModel.syncStatus == 'pending' || currentModel.syncStatus == 'failed') {
-        await _remoteDatasource.uploadDailyMetrics(currentModel);
-        
-        // 3. Mark as synced locally if network operation succeeds
-        currentModel.syncStatus = 'synced';
-        await _localDatasource.saveMetrics(currentModel);
+      final model = await _localDatasource.getOrCreateTodayMetrics();
+
+      if (model.syncStatus != 'synced') {
+        await _remoteDatasource.uploadDailyMetrics(model);
+
+        model.syncStatus = 'synced';
+        await _localDatasource.saveMetrics(model);
       }
     } catch (e) {
-      log('Repository manual sync execution skipped or failed: $e');
+      log('Sync failed: $e');
     }
   }
 

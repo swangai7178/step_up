@@ -10,63 +10,67 @@ class StepLocalDatasource {
     return DateFormat('yyyy-MM-dd').format(DateTime.now());
   }
 
-  /// Fetches or initializes a clean database row tracking today's steps
+  /// Fetch or create today's row
   Future<DailyMetricModel> getOrCreateTodayMetrics() async {
     final db = await _dbHelper.database;
     final todayStr = _getTodayDateString();
 
-    final List<Map<String, dynamic>> maps = await db.query(
+    final result = await db.query(
       'daily_metrics',
       where: 'date_string = ?',
       whereArgs: [todayStr],
     );
 
-    if (maps.isNotEmpty) {
-      return DailyMetricModel.fromMap(maps.first);
-    } else {
-      final newDay = DailyMetricModel(
-        dateString: todayStr,
-        steps: 0,
-        calories: 0.0,
-        distanceKm: 0.0,
-        durationMinutes: 0,
-        syncStatus: 'pending',
-      );
-      await db.insert('daily_metrics', newDay.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-      return newDay;
+    if (result.isNotEmpty) {
+      return DailyMetricModel.fromMap(result.first);
     }
+
+    final newDay = DailyMetricModel(
+      dateString: todayStr,
+      steps: 0,
+      calories: 0.0,
+      distanceKm: 0.0,
+      durationMinutes: 0,
+      syncStatus: 'pending',
+    );
+
+    await db.insert(
+      'daily_metrics',
+      newDay.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+
+    return newDay;
   }
 
-  /// Increments today's numerical rows using database upsert methods
-  Future<void> updateTodayMetrics({
-    required int additionalSteps,
-    required double additionalCalories,
-    required double additionalDistanceKm,
-    required int additionalDurationMinutes,
+  /// ✅ FIXED: overwrite-based update (NOT increment)
+  Future<void> setTodayMetrics({
+    required int steps,
+    required double calories,
+    required double distanceKm,
+    required int durationMinutes,
   }) async {
     final db = await _dbHelper.database;
     final todayStr = _getTodayDateString();
 
-    await db.rawUpdate('''
-      UPDATE daily_metrics 
-      SET steps = steps + ?, 
-          calories = calories + ?, 
-          distance_km = distance_km + ?, 
-          duration_minutes = duration_minutes + ?,
-          sync_status = 'pending'
-      WHERE date_string = ?
-    ''', [
-      additionalSteps,
-      additionalCalories,
-      additionalDistanceKm,
-      additionalDurationMinutes,
-      todayStr
-    ]);
+    await db.update(
+      'daily_metrics',
+      {
+        'steps': steps,
+        'calories': calories,
+        'distance_km': distanceKm,
+        'duration_minutes': durationMinutes,
+        'sync_status': 'pending',
+      },
+      where: 'date_string = ?',
+      whereArgs: [todayStr],
+    );
   }
 
-  /// Explicitly saves or updates an entire model record
+  /// Keep this for remote sync / manual override
   Future<void> saveMetrics(DailyMetricModel model) async {
     final db = await _dbHelper.database;
+
     await db.insert(
       'daily_metrics',
       model.toMap(),
