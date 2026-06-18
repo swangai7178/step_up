@@ -54,7 +54,7 @@ class DailyRing extends StatelessWidget {
                   Text(
                     'of $target steps',
                     style: TextStyle(
-                      color: AppConstants.textBright.withOpacity(0.4),
+                      color: AppConstants.textBright.withValues(alpha: 0.4),
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.5,
@@ -86,13 +86,13 @@ class _RingPainter extends CustomPainter {
 
     // 1. Draw Background Track Ring
     final trackPaint = Paint()
-      ..color = AppConstants.backgroundDark.withOpacity(0.8)
+      ..color = AppConstants.backgroundDark.withValues(alpha: 0.8)
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth;
     
     // Draw a secondary darker overlay border for depth
     final borderPaint = Paint()
-      ..color = Colors.white.withOpacity(0.04)
+      ..color = Colors.white.withValues(alpha: 0.04)
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth;
 

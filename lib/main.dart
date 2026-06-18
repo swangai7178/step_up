@@ -35,7 +35,7 @@ class StepUpApp extends StatelessWidget {
         brightness: Brightness.dark,
         colorScheme: const ColorScheme.dark(
           primary: AppConstants.primaryAccent,
-          background: AppConstants.backgroundDark,
+          surface: AppConstants.backgroundDark,
         ),
         fontFamily: 'Roboto', // Custom fonts can be substituted here seamlessly
       ),

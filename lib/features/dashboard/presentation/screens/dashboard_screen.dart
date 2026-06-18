@@ -84,7 +84,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             Text(
                               'Local Logs • Upload Pending',
                               style: TextStyle(
-                                color: AppConstants.textBright.withOpacity(0.5),
+                                color: AppConstants.textBright.withValues(alpha: 0.5),
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -94,7 +94,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: metrics?.isSynced == true ? Colors.green.withOpacity(0.2) : Colors.amber.withOpacity(0.2),
+                            color: metrics?.isSynced == true ? Colors.green.withValues(alpha: 0.2) : Colors.amber.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Icon(

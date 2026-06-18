@@ -13,10 +13,9 @@ class StepTrackerNotifier extends ChangeNotifier {
   int? _initialSensorReading;
 
   StepTrackerNotifier({
-    required StepRepository repository,
+    required this._repository,
     SensorService? sensorService,
-  })  : _repository = repository,
-        _sensorService = sensorService ?? SensorService();
+  })  : _sensorService = sensorService ?? SensorService();
 
   // --- Getters for UI Consumption ---
   DailyMetric? get currentMetrics => _currentMetrics;
