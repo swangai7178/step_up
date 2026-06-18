@@ -4,16 +4,43 @@ part 'daily_metric_model.g.dart';
 
 @collection
 class DailyMetricModel {
-  Id id = Isar.autoIncrement;
+  final String dateString;
+  int steps;
+  double calories;
+  double distanceKm;
+  int durationMinutes;
+  String syncStatus;
 
-  @Index(unique: true, replace: true)
-  late String dateString; // Format: YYYY-MM-DD
+  DailyMetricModel({
+    required this.dateString,
+    required this.steps,
+    required this.calories,
+    required this.distanceKm,
+    required this.durationMinutes,
+    required this.syncStatus,
+  });
 
-  late int steps;
-  late double calories;
-  late double distanceKm;
-  late int durationMinutes;
+  /// Factory constructor to parse rows from SQLite results cleanly
+  factory DailyMetricModel.fromMap(Map<String, dynamic> map) {
+    return DailyMetricModel(
+      dateString: map['date_string'] as String,
+      steps: map['steps'] as int,
+      calories: (map['calories'] as num).toDouble(),
+      distanceKm: (map['distance_km'] as num).toDouble(),
+      durationMinutes: map['duration_minutes'] as int,
+      syncStatus: map['sync_status'] as String,
+    );
+  }
 
-  @Index()
-  late String syncStatus; // 'pending', 'syncing', 'synced', 'failed'
+  /// Converts the current instance into a readable map database row block
+  Map<String, dynamic> toMap() {
+    return {
+      'date_string': dateString,
+      'steps': steps,
+      'calories': calories,
+      'distance_km': distanceKm,
+      'duration_minutes': durationMinutes,
+      'sync_status': syncStatus,
+    };
+  }
 }

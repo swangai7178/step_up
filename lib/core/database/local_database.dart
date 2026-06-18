@@ -1,59 +1,41 @@
-import 'dart:developer';
-import 'package:isar/isar.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:step_up_clone/core/constants/app_constants.dart';
-import 'package:step_up_clone/features/dashboard/data/models/daily_metric_model.dart';
+import 'package:path/path.dart';
+import 'package:sqflite/sqflite.dart';
 
 class LocalDatabase {
   static final LocalDatabase _instance = LocalDatabase._internal();
+  static Database? _database;
 
-  factory LocalDatabase() {
-    return _instance;
-  }
+  factory LocalDatabase() => _instance;
 
   LocalDatabase._internal();
 
-  bool _isInitialized = false;
-  late final Isar _isarInstance;
-
-  bool get isInitialized => _isInitialized;
-  Isar get instance => _isarInstance;
-
-  /// Open the Isar database connection instance.
-  /// Works across both main UI and background background worker isolates.
-  Future<void> initialize() async {
-    if (_isInitialized) {
-      log('Database already initialized.');
-      return;
-    }
-
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      
-      _isarInstance = await Isar.open(
-        [DailyMetricModelSchema],
-        directory: dir.path,
-        name: AppConstants.dbName,
-      );
-
-      _isInitialized = true;
-      log('Local Database successfully initialized via Isar at: ${dir.path}');
-    } catch (e) {
-      log('Critical failure initializing Local Database: $e');
-      rethrow;
-    }
+  Future<Database> get database async {
+    if (_database != null) return _database!;
+    _database = await _initDatabase();
+    return _database!;
   }
 
-  /// Safe closing routine for application lifecycle tracking
-  Future<void> close() async {
-    if (!_isInitialized) return;
-    
-    try {
-      await _isarInstance.close();
-      _isInitialized = false;
-      log('Local Database connection closed cleanly.');
-    } catch (e) {
-      log('Error closing Local Database: $e');
-    }
+  Future<Database> _initDatabase() async {
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, 'step_up_metrics.db');
+
+    return await openDatabase(
+      path,
+      version: 1,
+      onCreate: _onCreate,
+    );
+  }
+
+  Future<void> _onCreate(Database db, int version) async {
+    await db.execute('''
+      CREATE TABLE daily_metrics (
+        date_string TEXT PRIMARY KEY,
+        steps INTEGER NOT NULL DEFAULT 0,
+        calories REAL NOT NULL DEFAULT 0.0,
+        distance_km REAL NOT NULL DEFAULT 0.0,
+        duration_minutes INTEGER NOT NULL DEFAULT 0,
+        sync_status TEXT NOT NULL DEFAULT 'pending'
+      )
+    ''');
   }
 }

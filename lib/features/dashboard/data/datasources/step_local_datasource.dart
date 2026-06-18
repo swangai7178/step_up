@@ -1,80 +1,76 @@
-import 'package:isar/isar.dart';
+import 'package:intl/intl.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:step_up_clone/core/database/local_database.dart';
 import 'package:step_up_clone/features/dashboard/data/models/daily_metric_model.dart';
 
 class StepLocalDatasource {
-  final LocalDatabase _db;
+  final LocalDatabase _dbHelper = LocalDatabase();
 
-  StepLocalDatasource({LocalDatabase? db}) : _db = db ?? LocalDatabase();
-
-  /// Formats the current date consistently to match database index expectations.
-  String _getCurrentDateString() {
-    return DateTime.now().toIso8601String().substring(0, 10);
+  String _getTodayDateString() {
+    return DateFormat('yyyy-MM-dd').format(DateTime.now());
   }
 
-  /// Retrieves the metric record for the active calendar day.
-  /// If no record exists, it creates, persists, and returns a baseline block.
+  /// Fetches or initializes a clean database row tracking today's steps
   Future<DailyMetricModel> getOrCreateTodayMetrics() async {
-    final isar = _db.instance;
-    final todayStr = _getCurrentDateString();
+    final db = await _dbHelper.database;
+    final todayStr = _getTodayDateString();
 
-    // Check for an existing record matching today's format string
-    final existingRecord = await isar.dailyMetricModels
-        .filter()
-        .dateStringEqualTo(todayStr)
-        .findFirst();
+    final List<Map<String, dynamic>> maps = await db.query(
+      'daily_metrics',
+      where: 'date_string = ?',
+      whereArgs: [todayStr],
+    );
 
-    if (existingRecord != null) {
-      return existingRecord;
+    if (maps.isNotEmpty) {
+      return DailyMetricModel.fromMap(maps.first);
+    } else {
+      final newDay = DailyMetricModel(
+        dateString: todayStr,
+        steps: 0,
+        calories: 0.0,
+        distanceKm: 0.0,
+        durationMinutes: 0,
+        syncStatus: 'pending',
+      );
+      await db.insert('daily_metrics', newDay.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      return newDay;
     }
-
-    // Create a pristine default instance if the user opens the app for the first time today
-    final newRecord = DailyMetricModel()
-      ..dateString = todayStr
-      ..steps = 0
-      ..calories = 0.0
-      ..distanceKm = 0.0
-      ..durationMinutes = 0
-      ..syncStatus = 'pending';
-
-    await isar.writeTxn(() async {
-      await isar.dailyMetricModels.put(newRecord);
-    });
-
-    return newRecord;
   }
 
-  /// Atomically increments and updates today's rolling metric totals.
+  /// Increments today's numerical rows using database upsert methods
   Future<void> updateTodayMetrics({
     required int additionalSteps,
     required double additionalCalories,
     required double additionalDistanceKm,
     required int additionalDurationMinutes,
   }) async {
-    final isar = _db.instance;
-    final currentMetrics = await getOrCreateTodayMetrics();
+    final db = await _dbHelper.database;
+    final todayStr = _getTodayDateString();
 
-    await isar.writeTxn(() async {
-      currentMetrics.steps += additionalSteps;
-      currentMetrics.calories += additionalCalories;
-      currentMetrics.distanceKm += additionalDistanceKm;
-      currentMetrics.durationMinutes += additionalDurationMinutes;
-      
-      // If data updates, make sure any previous failure states reset to pending
-      if (currentMetrics.syncStatus == 'failed') {
-        currentMetrics.syncStatus = 'pending';
-      }
-
-      await isar.dailyMetricModels.put(currentMetrics);
-    });
+    await db.rawUpdate('''
+      UPDATE daily_metrics 
+      SET steps = steps + ?, 
+          calories = calories + ?, 
+          distance_km = distance_km + ?, 
+          duration_minutes = duration_minutes + ?,
+          sync_status = 'pending'
+      WHERE date_string = ?
+    ''', [
+      additionalSteps,
+      additionalCalories,
+      additionalDistanceKm,
+      additionalDurationMinutes,
+      todayStr
+    ]);
   }
 
-  /// Overwrites the exact parameters of today's model directly.
-  /// Useful when synchronizing total historical offsets from a hardware sensor stream.
+  /// Explicitly saves or updates an entire model record
   Future<void> saveMetrics(DailyMetricModel model) async {
-    final isar = _db.instance;
-    await isar.writeTxn(() async {
-      await isar.dailyMetricModels.put(model);
-    });
+    final db = await _dbHelper.database;
+    await db.insert(
+      'daily_metrics',
+      model.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 }
