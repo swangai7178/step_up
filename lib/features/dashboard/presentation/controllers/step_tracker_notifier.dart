@@ -1,5 +1,6 @@
 import 'dart:developer';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // 👈 ADD THIS IMPORT
 import 'package:step_up_clone/core/services/sensor_service.dart';
 import 'package:step_up_clone/features/dashboard/domain/entities/daily_metric.dart';
 import 'package:step_up_clone/features/dashboard/domain/repositories/step_repository.dart';
@@ -7,9 +8,11 @@ import 'package:step_up_clone/features/dashboard/domain/repositories/step_reposi
 class StepTrackerNotifier extends ChangeNotifier {
   final StepRepository _repository;
   final SensorService _sensorService;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance; // 👈 Firestore instance
 
   DailyMetric? _currentMetrics;
   bool _isLoading = true;
+  bool _isSyncing = false; // 👈 Track sync button state
   int? _sessionBaseline; 
 
   StepTrackerNotifier({
@@ -20,6 +23,47 @@ class StepTrackerNotifier extends ChangeNotifier {
 
   DailyMetric? get currentMetrics => _currentMetrics;
   bool get isLoading => _isLoading;
+  bool get isSyncing => _isSyncing; // 👈 Getter for UI spinner
+
+  // 👇 NEW: Firebase Upload Logic
+  Future<void> syncToFirebase() async {
+    if (_currentMetrics == null || _isSyncing) return;
+
+    _isSyncing = true;
+    notifyListeners();
+
+    try {
+      // Assuming you track user sessions, change 'test_user' to your Auth UID later
+      final userId = 'test_user'; 
+      final dateKey = _currentMetrics!.dateString; // e.g., "2026-06-18"
+
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('daily_metrics')
+          .doc(dateKey)
+          .set({
+        'steps': _currentMetrics!.steps,
+        'calories': _currentMetrics!.calories,
+        'distanceKm': _currentMetrics!.distanceKm,
+        'durationMinutes': _currentMetrics!.durationMinutes,
+        'lastSyncedAt': FieldValue.serverTimestamp(),
+        'isSynced': true,
+      }, SetOptions(merge: true));
+
+      print("☁️ Successfully uploaded steps to Firebase Cloud Firestore!");
+
+      // Update local state repository marker to show synced checkmarks
+      // If your repository has a markAsSynced method, call it here. 
+      // For now, we will simulate it by manipulating the object reference or reloading:
+      _currentMetrics = await _repository.getTodayMetrics(); 
+    } catch (e) {
+      print("❌ Firebase Sync Error: $e");
+    } finally {
+      _isSyncing = false;
+      notifyListeners();
+    }
+  }
 
   Future<void> initializeTracker() async {
     _isLoading = true;
@@ -41,29 +85,18 @@ class StepTrackerNotifier extends ChangeNotifier {
   }
 
   void _handleHardwareStepUpdate(int absoluteSteps) async {
-    print("------------------------------------------------");
-    print("🎯 NOTIFIER RECEIVED ABSOLUTE STEPS: $absoluteSteps");
-
-    // Initialize baseline tracking token on application setup hook
     if (_sessionBaseline == null) {
       _sessionBaseline = absoluteSteps;
-      print("🏁 INITIALIZED SESSION BASELINE TO: $_sessionBaseline");
     }
     
     final sessionSteps = absoluteSteps - _sessionBaseline!;
-    print("📊 CALCULATED SESSION STEPS (Current - Baseline): $sessionSteps");
-    print("------------------------------------------------");
 
     try {
-      print("💾 PERSISTING TO REPOSITORY: $sessionSteps steps");
       await _repository.addSteps(sessionSteps);
-      
       _currentMetrics = await _repository.getTodayMetrics();
-      print("📈 REFRESHED METRICS IN UI. CURRENT TOTAL steps field: ${_currentMetrics?.steps ?? 0}");
-      
       notifyListeners();
     } catch (e) {
-      print("❌ ERROR DURING STEP UPDATE LOGIC: $e");
+      log('Step update error: $e');
     }
   }
 

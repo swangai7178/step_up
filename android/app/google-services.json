@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "924283019264",
+    "project_id": "thoko-system",
+    "storage_bucket": "thoko-system.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:924283019264:android:c5e7ec22051ce7cda938e5",
+        "android_client_info": {
+          "package_name": "com.example.ota_client"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA4dMtorhXwHB9g-HjpPH8z6hQKx_650vM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:924283019264:android:fd157c79c6bdea12a938e5",
+        "android_client_info": {
+          "package_name": "com.example.step_up_clone"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA4dMtorhXwHB9g-HjpPH8z6hQKx_650vM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:924283019264:android:2cc3c2d488d1a1d7a938e5",
+        "android_client_info": {
+          "package_name": "com.example.thoko"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA4dMtorhXwHB9g-HjpPH8z6hQKx_650vM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

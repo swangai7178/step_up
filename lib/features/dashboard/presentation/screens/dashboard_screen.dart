@@ -29,15 +29,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final status = await Permission.activityRecognition.request();
-      
       if (status.isGranted) {
-        print("✅ Activity Recognition permission accepted.");
         _notifier.initializeTracker();
       } else {
-        print("❌ Activity Recognition permission rejected.");
-        setState(() {
-          _permissionDeniedMessage = true;
-        });
+        setState(() => _permissionDeniedMessage = true);
         _notifier.initializeTracker();
       }
     });
@@ -72,12 +67,61 @@ class _DashboardScreenState extends State<DashboardScreen> {
               final distance = metrics?.distanceKm ?? 0.0;
               final duration = metrics?.durationMinutes ?? 0;
               final progress = metrics?.getProgressPercentage(AppConstants.defaultStepGoal) ?? 0.0;
+              
+              // Determine if we need to show the top sync banner prompt
+              final showSyncPrompt = metrics != null && metrics.isSynced == false;
 
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // 👇 NEW FEATURE: SYNC ACTION PROMPT BANNER
+                    if (showSyncPrompt) ...[
+                      GestureDetector(
+                        onTap: notifier.isSyncing 
+                            ? null 
+                            : () => notifier.syncToFirebase(),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                          decoration: BoxDecoration(
+                            color: Colors.amberAccent.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.amberAccent.withValues(alpha: 0.4)),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.cloud_upload, color: Colors.amberAccent, size: 22),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Cloud Sync Pending',
+                                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                                    ),
+                                    Text(
+                                      'Tap here to back up today\'s steps safely.',
+                                      style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              notifier.isSyncing 
+                                  ? const SizedBox(
+                                      height: 20, 
+                                      width: 20, 
+                                      child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.amberAccent)),
+                                    )
+                                  : Icon(Icons.arrow_forward_ios, color: Colors.amberAccent, size: 14),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -95,7 +139,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Local Logs • Upload Pending',
+                              metrics?.isSynced == true ? 'All logs up to date' : 'Local Logs • Upload Pending',
                               style: TextStyle(
                                 color: AppConstants.textBright.withValues(alpha: 0.5),
                                 fontSize: 12,
