@@ -10,8 +10,7 @@ class StepTrackerNotifier extends ChangeNotifier {
 
   DailyMetric? _currentMetrics;
   bool _isLoading = true;
-
-  int? _sessionBaseline; // 👈 FIXED: renamed for clarity
+  int? _sessionBaseline; 
 
   StepTrackerNotifier({
     required StepRepository repository,
@@ -28,7 +27,6 @@ class StepTrackerNotifier extends ChangeNotifier {
 
     try {
       _currentMetrics = await _repository.getTodayMetrics();
-
       _isLoading = false;
       notifyListeners();
 
@@ -43,24 +41,29 @@ class StepTrackerNotifier extends ChangeNotifier {
   }
 
   void _handleHardwareStepUpdate(int absoluteSteps) async {
-    log('RAW SENSOR STEPS: $absoluteSteps');
+    print("------------------------------------------------");
+    print("🎯 NOTIFIER RECEIVED ABSOLUTE STEPS: $absoluteSteps");
 
-    // 🔥 FIX 1: baseline set ONLY ONCE
-    _sessionBaseline ??= absoluteSteps;
-    final todaySteps = absoluteSteps - _sessionBaseline!;
-
-    if (todaySteps <= 0) return;
-
-    log('TODAY STEPS CALCULATED: $todaySteps');
+    // Initialize baseline tracking token on application setup hook
+    if (_sessionBaseline == null) {
+      _sessionBaseline = absoluteSteps;
+      print("🏁 INITIALIZED SESSION BASELINE TO: $_sessionBaseline");
+    }
+    
+    final sessionSteps = absoluteSteps - _sessionBaseline!;
+    print("📊 CALCULATED SESSION STEPS (Current - Baseline): $sessionSteps");
+    print("------------------------------------------------");
 
     try {
-      // 🔥 FIX 2: we ALWAYS set total, NOT incremental delta confusion
-      await _repository.addSteps(todaySteps);
-
+      print("💾 PERSISTING TO REPOSITORY: $sessionSteps steps");
+      await _repository.addSteps(sessionSteps);
+      
       _currentMetrics = await _repository.getTodayMetrics();
+      print("📈 REFRESHED METRICS IN UI. CURRENT TOTAL steps field: ${_currentMetrics?.steps ?? 0}");
+      
       notifyListeners();
     } catch (e) {
-      log('Step update error: $e');
+      print("❌ ERROR DURING STEP UPDATE LOGIC: $e");
     }
   }
 

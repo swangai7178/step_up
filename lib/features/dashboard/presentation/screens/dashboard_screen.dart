@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:step_up_clone/core/constants/app_constants.dart'; // CRITICAL: This imports StepRepositoryImpl
+import 'package:permission_handler/permission_handler.dart'; 
+
+import 'package:step_up_clone/core/constants/app_constants.dart'; 
 import 'package:step_up_clone/features/dashboard/data/repositories/step_repository_impl.dart';
 import 'package:step_up_clone/features/dashboard/presentation/controllers/step_tracker_notifier.dart';
 import 'package:step_up_clone/features/dashboard/presentation/widgets/daily_ring.dart';
@@ -15,18 +17,29 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   late final StepTrackerNotifier _notifier;
+  bool _permissionDeniedMessage = false;
 
   @override
   void initState() {
     super.initState();
     
-    // Explicitly instantiating the implementation class resolved by the top import
     _notifier = StepTrackerNotifier(
       repository: StepRepositoryImpl(),
     );
     
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _notifier.initializeTracker();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final status = await Permission.activityRecognition.request();
+      
+      if (status.isGranted) {
+        print("✅ Activity Recognition permission accepted.");
+        _notifier.initializeTracker();
+      } else {
+        print("❌ Activity Recognition permission rejected.");
+        setState(() {
+          _permissionDeniedMessage = true;
+        });
+        _notifier.initializeTracker();
+      }
     });
   }
 
@@ -105,6 +118,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ],
                     ),
+                    if (_permissionDeniedMessage) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          "⚠️ Permission required to access physical sensors. Please enable it in system settings.",
+                          style: TextStyle(color: Colors.redAccent, fontSize: 12),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 40),
                     Center(
                       child: DailyRing(
