@@ -4,7 +4,6 @@ import 'package:step_up_clone/core/database/local_database.dart';
 import 'package:step_up_clone/core/services/sync_service.dart';
 import 'package:workmanager/workmanager.dart';
 
-
 /// Name of the unique background task for syncing daily steps
 const String kDailySyncTask = "com.your_app.dailySyncTask";
 
@@ -42,9 +41,9 @@ void callbackDispatcher() {
     
     if (taskName == kDailySyncTask) {
       try {
-        // 1. Initialize DB context within this separate background isolate thread
+        // 1. Instantiating the helper is enough. 
+        // SyncService internally calls and awaits 'db.database' which boots up SQLite cleanly.
         final db = LocalDatabase();
-        await db.initialize();
         
         // 2. Fetch data that belongs to completed days but hasn't synced yet
         final syncService = SyncService(db: db);

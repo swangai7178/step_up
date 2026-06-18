@@ -1,8 +1,4 @@
-import 'package:isar/isar.dart';
 
-part 'daily_metric_model.g.dart';
-
-@collection
 class DailyMetricModel {
   final String dateString;
   int steps;
